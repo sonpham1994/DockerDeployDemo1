@@ -1,0 +1,30 @@
+Uploading variables.sh
+. variables.sh (For using Cloud Bash Shell)
+
+create a resource group
+az group create --name $RG_NAME --location $RG_LOCATION
+
+Get the ID of the resource group
+RG_ID=$(az group show --name $RG_NAME --query id --output tsv)
+
+Create the service principal that GitHub will use to deploy the container, and later this will be used to configure 
+ the Azure Kubernetes Service. This will output the result in a file format that we can paste into a GitHub secret 
+ and use for authentication within a GitHub action later, one that's specifically for authenticating to Azure Kubernetes. 
+ This gives us back info about the service principal, including the password, and it's called a client secret here. So 
+ let's copy it and open up Notepad and paste the service principal information here.
+az ad sp create-for-rbac --name $SP_NAME --scopes $RG_ID --role Contributor --sdk-auth
+
+Storing ServicePrincipalId
+SP_ID=$(az ad sp list --display-name $SP_NAME --query "[].appId" --output tsv)
+
+Create the Azure Container Registry instance. After creating, You will see your server in loginServer field
+az acr create --resource-group $RG_NAME --name $ACR_NAME --sku Basic
+
+Check your Azure Container Registry instance on Azure in Container Registries menu.
+
+Get the ID of the container registry
+ACR_ID=$(az acr show --name $ACR_NAME --query id --output tsv)
+
+Assign a permission to the service principal that will allow GitHub to push containers into the registry using this 
+ credential. We do that with az role assignment, and the role we're assigning to the service principal is the AcrPush role
+az role assignment create --assignee $SP_ID --scope $ACR_ID --role AcrPush
