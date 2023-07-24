@@ -1,0 +1,33 @@
+# upload variables.sh to Azure Cloud Shell (bash), modify values and run using ". variables.sh"
+# or set variables manually on command line (bash)
+
+# to setup Azure Container Registry:
+
+az group create --name $RG_NAME --location $RG_LOCATION
+RG_ID=$(az group show --name $RG_NAME --query id --output tsv)
+
+az ad sp create-for-rbac --name $SP_NAME --scopes $RG_ID --role Contributor --sdk-auth
+
+#copy output to a text file for use later
+
+SP_PASSWORD=<paste in password from above output>
+
+SP_ID=$(az ad sp list --display-name $SP_NAME --query "[].appId" --output tsv)
+
+az acr create --resource-group $RG_NAME --name $ACR_NAME --sku Basic
+ACR_ID=$(az acr show --name $ACR_NAME --query id --output tsv)
+
+az role assignment create --assignee $SP_ID --scope $ACR_ID --role AcrPush
+
+
+
+
+
+
+# to setup Azure Kubernetes Service cluster:
+
+AKS_NAME="<azure kubernetes cluster name for creation>"
+az role assignment create --assignee $SP_ID --scope $ACR_ID --role AcrPull
+
+az aks create --resource-group $RG_NAME --name $AKS_NAME --node-count 2 --generate-ssh-keys --attach-acr $ACR_NAME --service-principal $SP_ID --client-secret $SP_PASSWORD
+
